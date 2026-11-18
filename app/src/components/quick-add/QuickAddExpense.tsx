@@ -35,7 +35,7 @@ import {
 } from "../../types";
 
 const CATEGORY_ICONS: Record<Category, React.ComponentType<{ size?: number }> = {
-  Moradia: Home,
+  Casa: Home,
 
   Alimentação: UtensilsCrossed,
 
