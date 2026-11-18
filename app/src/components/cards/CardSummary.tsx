@@ -22,6 +22,7 @@ export default function CardSummary() {
   const [cardName, setCardName] = useState("");
   const [cardOwner, setCardOwner] = useState("");
   const [cardDueDay, setCardDueDay] = useState("");
+  const [cardClosingDay, setCardClosingDay] = useState("");
   const [saving, setSaving] = useState(false);
   const [togglingInvoice, setTogglingInvoice] = useState<string | null>(null);
 
@@ -31,16 +32,19 @@ export default function CardSummary() {
 
     try {
       const dueDay = cardDueDay ? parseInt(cardDueDay, 10) : undefined;
+      const closingDay = cardClosingDay ? parseInt(cardClosingDay, 10) : undefined;
 
       await addCard({
         name: cardName.trim(),
         owner: cardOwner.trim(),
 
         ...(dueDay && dueDay >= 1 && dueDay <= 31 ? { dueDay } : {}),
+        ...(closingDay && closingDay >= 1 && closingDay <= 31 ? { closingDay } : {}),
       });
       setCardName("");
       setCardOwner("");
       setCardDueDay("");
+      setCardClosingDay("");
       setShowAddCard(false);
     } finally {
       setSaving(false);
@@ -119,7 +123,15 @@ export default function CardSummary() {
             onChange={(e) => setCardDueDay(e.target.value)}
             placeholder="Dia vencimento fatura - opcional (ex: 10)"
           />
-
+          <input
+            style={styles.input}
+            type="number"
+            min="1"
+            max="31"
+            value={cardClosingDay}
+            onChange={(e) => setCardClosingDay(e.target.value)}
+            placeholder="Dia de fechamento da fatura - opcional (ex: 25)"
+          />
           <div style={{ display: "flex", gap: 8 }}>
             <button
               style={styles.confirmBtn}
@@ -137,6 +149,7 @@ export default function CardSummary() {
                 setCardName("");
                 setCardOwner("");
                 setCardDueDay("");
+                setCardClosingDay("");
               }}
             >
               Cancelar
@@ -226,11 +239,17 @@ export default function CardSummary() {
 
                       <span style={styles.sectionTitle}>Fatura de Crédito</span>
 
-                      {card.dueDay && (
+                      {card.closingDay && (
+                        <span style={styles.dueBadge}>
+                          Vence dia {card.closingDay}
+                        </span>
+                      )}
+                  {card.dueDay && (
                         <span style={styles.dueBadge}>
                           Vence dia {card.dueDay}
                         </span>
                       )}
+
                     </div>
 
                     <div
@@ -503,6 +522,16 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 12,
     backgroundColor: "#FEF3C7",
     color: "#D97706",
+    fontSize: 11,
+    fontWeight: 600,
+  },
+
+  closingBadge: {
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 12,
+    backgroundColor: "#EDE9FE",
+    color: "#7C3AED",
     fontSize: 11,
     fontWeight: 600,
   },

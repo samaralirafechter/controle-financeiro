@@ -98,7 +98,37 @@ export interface Card {
   name: string;
   owner: string;
   dueDay?: number; // dia do vencimento da fatura (1-31)
+  closingDay?: number; // dia de fechamento da fatura (1-31)
 }
+
+/**
+* Calcula o monthYear correto para um gasto no crédito baseado no dia de fechamento.
+* - compra antes -> fatura do mês seguinte (monthYear = mês atual +1)
+* - compra depois ou no dia de fechamento -> fatura de 2 meses à frente (monthYear = mês atual +2)
+* - Se closingDay não definida, usa mês seguinte (monthYear = mês atual +1)
+*/
+
+export function getCreditMonthYear(purchaseDate: string, closingDay: number): string {
+
+    const date = new Date(purchaseDate + 'T12:00:00');
+    const day = date.getDate();
+    const month = date.getMonth();
+    const year = date.getFullYear();
+
+    if (day < closingDay || !closingDay) {
+        //Antes do fechamento ou zerado -> fatura do mês seguinte
+        const m = month + 1;
+        const newMonth = m % 12;
+        const newYear = year + Math.floor(m / 12);
+        return `${newYear}-${String(newMonth + 1).padStart(2, '0')}`;
+        } else {
+            //Depois do fechamento -> fatura de 2 meses à frente
+            const m = month + 2;
+            const newMonth = m % 12;
+            const newYear = year + Math.floor(m / 12);
+            return `${newYear}-${String(newMonth + 1).padStart(2, '0')}`;
+            }
+        }
 
 export interface MonthData {
   monthYear: string;

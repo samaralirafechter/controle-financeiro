@@ -11,7 +11,7 @@ import { format, addMonths, parse } from "date-fns";
 
 import type { Expense, Income, Card, Category } from "../types";
 
-import { CATEGORY_COLORS } from "../types";
+import { CATEGORY_COLORS, getCreditMonthYear } from "../types";
 
 import {
   addExpense as addExpenseService,
@@ -353,13 +353,18 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     async (expense: Omit<Expense, "id">) => {
       const groupId = crypto.randomUUID();
 
-      if (expense.type === "fixo") {
+      //Crédito sempre vai para o mês seguinte (ou +2 se depois do fechamento)
+      let adjustedExpense = { ...expense };
+      if (expense.paymentMethod === 'credito') {
+          const card = expense.card ? cards.find((c) => c.name === expense.card) : undefined;
+          const purchaseDate = expense.date || format(new Date(), 'yyyy-MM-dd');
+          adjustedExpense.monthYear = getCreditMonthYear(purchaseDate, card?.closingDay);
+          }
+      }
         // Gasto fixo: cria no mês atual + próximos 12 meses
 
-        const baseDate = parse(expense.monthYear, "yyyy-MM", new Date());
-
-        const currentMonthExpense = { ...expense, groupId };
-
+        const baseDate = parse(adjustedExpense.monthYear, "yyyy-MM", new Date());
+        const currentMonthExpense = { ...adjustedExpense.monthYear, groupId };
         const id = await addExpenseService(currentMonthExpense);
 
         setExpenses((prev) => [...prev, { ...currentMonthExpense, id }]);
@@ -374,7 +379,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           const futureMonthYear = format(futureDate, "yyyy-MM");
 
           futureExpenses.push({
-            ...expense,
+            ...adjustedExpense,
 
             groupId,
 
@@ -385,21 +390,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         }
 
         await addExpensesBatch(futureExpenses);
-      } else if (expense.type === "parcelado" && expense.installmentTotal) {
-        // Gasto parcelado: cria parcelas do mês atual até a última parcela
+      } else if (adjustedExpense.type === "parcelado" && adjustedExpense.installmentTotal) {
+        // Gasto parcelado: cria parcelas do mês ajustado até a última parcela
 
-        const baseDate = parse(expense.monthYear, "yyyy-MM", new Date());
-
-        const startInstallment = expense.installmentCurrent || 1;
-
-        const totalInstallments = expense.installmentTotal;
+        const baseDate = parse(adjustedExpense.monthYear, "yyyy-MM", new Date());
+        const startInstallment = adjustedExpense.installmentCurrent || 1;
+        const totalInstallments = adjustedExpense.installmentTotal;
 
         const remainingInstallments = totalInstallments - startInstallment + 1;
 
-        // Primeira parcela (mês atual)
+        // Primeira parcela
 
         const currentMonthExpense = {
-          ...expense,
+          ...adjustedExpense,
 
           groupId,
 
@@ -421,7 +424,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
             const futureMonthYear = format(futureDate, "yyyy-MM");
 
             futureExpenses.push({
-              ...expense,
+              ...adjustedExpense,
 
               groupId,
 
@@ -436,15 +439,15 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           await addExpensesBatch(futureExpenses);
         }
       } else {
-        // Gasto geral ou guardado: apenas o mês atual
+        // Gasto geral ou guardado
 
-        const id = await addExpenseService(expense);
+        const id = await addExpenseService(adjustedExpense);
 
-        setExpenses((prev) => [...prev, { ...expense, id }]);
+        setExpenses((prev) => [...prev, { ...adjustedExpense, id }]);
       }
     },
 
-    [],
+    [cards],
   );
 
   const handleUpdateExpense = useCallback(
