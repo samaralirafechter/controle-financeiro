@@ -34,7 +34,8 @@ import {
   type PaymentMethod,
 } from "../../types";
 
-const CATEGORY_ICONS: Record<Category, React.ComponentType<{ size?: number }> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CATEGORY_ICONS: Record<string, any> = {
   Casa: Home,
 
   Alimentação: UtensilsCrossed,
