@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Trash2, Plus, CreditCard, Banknote } from "lucide-react";
+
+import {
+  Trash2,
+  Plus,
+  CreditCard,
+  Banknote,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
+
 import { useFinance } from "../../contexts/FinanceContext";
 
 const fmt = (v: number) =>
@@ -14,6 +24,7 @@ export default function CardSummary() {
     incomesByCard,
     totalExpenses,
     addCard,
+    updateCard,
     deleteCard,
     updateExpense,
   } = useFinance();
@@ -26,25 +37,46 @@ export default function CardSummary() {
   const [saving, setSaving] = useState(false);
   const [togglingInvoice, setTogglingInvoice] = useState<string | null>(null);
 
+  // Estado de edição de cartão
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editOwner, setEditOwner] = useState("");
+  const [editDueDay, setEditDueDay] = useState("");
+  const [editClosingDay, setEditClosingDay] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   async function handleAddCard() {
     if (!cardName.trim()) return;
+
     setSaving(true);
 
     try {
       const dueDay = cardDueDay ? parseInt(cardDueDay, 10) : undefined;
-      const closingDay = cardClosingDay ? parseInt(cardClosingDay, 10) : undefined;
+
+      const closingDay = cardClosingDay
+        ? parseInt(cardClosingDay, 10)
+        : undefined;
 
       await addCard({
         name: cardName.trim(),
+
         owner: cardOwner.trim(),
 
         ...(dueDay && dueDay >= 1 && dueDay <= 31 ? { dueDay } : {}),
-        ...(closingDay && closingDay >= 1 && closingDay <= 31 ? { closingDay } : {}),
+
+        ...(closingDay && closingDay >= 1 && closingDay <= 31
+          ? { closingDay }
+          : {}),
       });
+
       setCardName("");
+
       setCardOwner("");
+
       setCardDueDay("");
+
       setCardClosingDay("");
+
       setShowAddCard(false);
     } finally {
       setSaving(false);
@@ -54,6 +86,68 @@ export default function CardSummary() {
   async function handleDeleteCard(id: string, name: string) {
     if (window.confirm(`Tem certeza que deseja excluir o cartão "${name}"?`)) {
       await deleteCard(id);
+    }
+  }
+
+  function startEditCard(card: {
+    id: string;
+    name: string;
+    owner: string;
+    dueDay?: number;
+    closingDay?: number;
+  }) {
+    setEditingCardId(card.id);
+
+    setEditName(card.name);
+
+    setEditOwner(card.owner || "");
+
+    setEditDueDay(card.dueDay ? String(card.dueDay) : "");
+
+    setEditClosingDay(card.closingDay ? String(card.closingDay) : "");
+  }
+
+  function cancelEditCard() {
+    setEditingCardId(null);
+
+    setEditName("");
+
+    setEditOwner("");
+
+    setEditDueDay("");
+
+    setEditClosingDay("");
+  }
+
+  async function handleSaveEditCard() {
+    if (!editingCardId || !editName.trim()) return;
+
+    setEditSaving(true);
+
+    try {
+      const dueDay = editDueDay ? parseInt(editDueDay, 10) : undefined;
+
+      const closingDay = editClosingDay
+        ? parseInt(editClosingDay, 10)
+        : undefined;
+
+      await updateCard(editingCardId, {
+        name: editName.trim(),
+
+        owner: editOwner.trim(),
+
+        ...(dueDay && dueDay >= 1 && dueDay <= 31
+          ? { dueDay }
+          : { dueDay: undefined }),
+
+        ...(closingDay && closingDay >= 1 && closingDay <= 31
+          ? { closingDay }
+          : { closingDay: undefined }),
+      });
+
+      cancelEditCard();
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -67,7 +161,9 @@ export default function CardSummary() {
 
     try {
       const allPaid = creditExpenses.every((e) => e.paid);
+
       const newPaid = !allPaid;
+
       await Promise.all(
         creditExpenses.map((e) => updateExpense(e.id, { paid: newPaid })),
       );
@@ -92,6 +188,7 @@ export default function CardSummary() {
 
         <button
           style={styles.addCardBtn}
+
           onClick={() => setShowAddCard(!showAddCard)}
         >
           <Plus size={16} /> Novo Cartão
@@ -102,40 +199,62 @@ export default function CardSummary() {
         <div style={styles.addCardForm}>
           <input
             style={styles.input}
+
             value={cardName}
+
             onChange={(e) => setCardName(e.target.value)}
+
             placeholder="Nome do cartão (ex: Nubank, Ticket VR)"
           />
 
           <input
             style={styles.input}
+
             value={cardOwner}
+
             onChange={(e) => setCardOwner(e.target.value)}
+
             placeholder="Dono - opcional (ex: Samuel, Lucas)"
           />
 
           <input
             style={styles.input}
+
             type="number"
+
             min="1"
+
             max="31"
+
             value={cardDueDay}
+
             onChange={(e) => setCardDueDay(e.target.value)}
+
             placeholder="Dia vencimento fatura - opcional (ex: 10)"
           />
+
           <input
             style={styles.input}
+
             type="number"
+
             min="1"
+
             max="31"
+
             value={cardClosingDay}
+
             onChange={(e) => setCardClosingDay(e.target.value)}
-            placeholder="Dia de fechamento da fatura - opcional (ex: 25)"
+
+            placeholder="Dia fechamento fatura - opcional (ex: 25)"
           />
+
           <div style={{ display: "flex", gap: 8 }}>
             <button
               style={styles.confirmBtn}
+
               onClick={handleAddCard}
+
               disabled={saving || !cardName.trim()}
             >
               {saving ? "Salvando..." : "Adicionar"}
@@ -159,45 +278,113 @@ export default function CardSummary() {
       )}
 
       <div style={styles.grid}>
-        {cards
+        {cards.map((card) => {
+          const items = expensesByCard[card.name] ?? [];
 
-          .filter((card) => {
-            const hasExpenses = (expensesByCard[card.name] ?? []).length > 0;
-            const hasIncome = (incomesByCard[card.name] ?? []).length > 0;
-            return hasExpenses || hasIncome;
-          })
+          const creditItems = items.filter(
+            (e) => e.paymentMethod === "credito" || !e.paymentMethod,
+          );
 
-          .map((card) => {
-            const items = expensesByCard[card.name] ?? [];
+          const debitItems = items.filter((e) => e.paymentMethod === "debito");
 
-            const creditItems = items.filter(
-              (e) => e.paymentMethod === "credito" || !e.paymentMethod,
-            );
+          const subtotal = items.reduce((sum, e) => sum + e.value, 0);
 
-            const debitItems = items.filter(
-              (e) => e.paymentMethod === "debito",
-            );
+          const creditTotal = creditItems.reduce((sum, e) => sum + e.value, 0);
 
-            const subtotal = items.reduce((sum, e) => sum + e.value, 0);
-            const creditTotal = creditItems.reduce(
-              (sum, e) => sum + e.value,
-              0,
-            );
+          const debitTotal = debitItems.reduce((sum, e) => sum + e.value, 0);
 
-            const debitTotal = debitItems.reduce((sum, e) => sum + e.value, 0);
-            const cardIncomes = incomesByCard[card.name] ?? [];
-            const totalCardIncome = cardIncomes.reduce(
-              (sum, i) => sum + i.value,
-              0,
-            );
+          const cardIncomes = incomesByCard[card.name] ?? [];
 
-            const hasCardIncome = totalCardIncome > 0;
-            const cardBalance = totalCardIncome - subtotal;
-            const invoicePaid =
-              creditItems.length > 0 && creditItems.every((e) => e.paid);
+          const totalCardIncome = cardIncomes.reduce(
+            (sum, i) => sum + i.value,
+            0,
+          );
 
-            return (
-              <div key={card.id} style={styles.card}>
+          const hasCardIncome = totalCardIncome > 0;
+
+          const cardBalance = totalCardIncome - subtotal;
+
+          const invoicePaid =
+            creditItems.length > 0 && creditItems.every((e) => e.paid);
+
+          return (
+            <div key={card.id} style={styles.card}>
+              {editingCardId === card.id ? (
+                <div style={styles.editCardForm}>
+                  <input
+                    style={styles.input}
+
+                    value={editName}
+
+                    onChange={(e) => setEditName(e.target.value)}
+
+                    placeholder="Nome do cartão"
+                  />
+
+                  <input
+                    style={styles.input}
+
+                    value={editOwner}
+
+                    onChange={(e) => setEditOwner(e.target.value)}
+
+                    placeholder="Dono - opcional"
+                  />
+
+                  <input
+                    style={styles.input}
+
+                    type="number"
+
+                    min="1"
+
+                    max="31"
+
+                    value={editDueDay}
+
+                    onChange={(e) => setEditDueDay(e.target.value)}
+
+                    placeholder="Dia vencimento - opcional (ex: 10)"
+                  />
+
+                  <input
+                    style={styles.input}
+
+                    type="number"
+
+                    min="1"
+
+                    max="31"
+
+                    value={editClosingDay}
+
+                    onChange={(e) => setEditClosingDay(e.target.value)}
+
+                    placeholder="Dia fechamento - opcional (ex: 25)"
+                  />
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      style={styles.confirmBtn}
+
+                      onClick={handleSaveEditCard}
+
+                      disabled={editSaving || !editName.trim()}
+                    >
+                      <Check size={14} />{" "}
+                      {editSaving ? "Salvando..." : "Salvar"}
+                    </button>
+
+                    <button
+                      style={styles.cancelBtn}
+
+                      onClick={cancelEditCard}
+                    >
+                      <X size={14} /> Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
                 <div style={styles.cardHeader}>
                   <div>
                     <span style={styles.cardName}>{card.name}</span>
@@ -207,165 +394,172 @@ export default function CardSummary() {
                     )}
                   </div>
 
-                  <button
-                    style={styles.deleteCardBtn}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      style={styles.editCardBtn}
 
-                    onClick={() => handleDeleteCard(card.id, card.name)}
+                      onClick={() => startEditCard(card)}
 
-                    title="Excluir cartão"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                      title="Editar cartão"
+                    >
+                      <Pencil size={14} />
+                    </button>
+
+                    <button
+                      style={styles.deleteCardBtn}
+
+                      onClick={() => handleDeleteCard(card.id, card.name)}
+
+                      title="Excluir cartão"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                {hasCardIncome && (
-                  <div style={styles.cardIncomeRow}>
-                    <span style={styles.cardIncomeLabel}>Crédito recebido</span>
+              {hasCardIncome && (
+                <div style={styles.cardIncomeRow}>
+                  <span style={styles.cardIncomeLabel}>Crédito recebido</span>
 
-                    <span style={styles.cardIncomeValue}>
-                      {fmt(totalCardIncome)}
-                    </span>
-                  </div>
-                )}
+                  <span style={styles.cardIncomeValue}>
+                    {fmt(totalCardIncome)}
+                  </span>
+                </div>
+              )}
 
-                {/* ===== FATURA DE CRÉDITO ===== */}
+              {/* ===== FATURA DE CRÉDITO ===== */}
 
-                {creditItems.length > 0 && (
-                  <div style={styles.sectionRow}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <CreditCard size={14} color="#7C3AED" />
+              {creditItems.length > 0 && (
+                <div style={styles.sectionRow}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <CreditCard size={14} color="#7C3AED" />
 
-                      <span style={styles.sectionTitle}>Fatura de Crédito</span>
+                    <span style={styles.sectionTitle}>Fatura de Crédito</span>
 
-                      {card.closingDay && (
-                        <span style={styles.dueBadge}>
-                          Vence dia {card.closingDay}
-                        </span>
-                      )}
-                  {card.dueDay && (
-                        <span style={styles.dueBadge}>
-                          Vence dia {card.dueDay}
-                        </span>
-                      )}
-
-                    </div>
-
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 12 }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: invoicePaid ? "#9CA3AF" : "#7C3AED",
-                          textDecoration: invoicePaid ? "line-through" : "none",
-                        }}
-                      >
-                        {fmt(creditTotal)}
+                    {card.closingDay && (
+                      <span style={styles.closingBadge}>
+                        Fecha dia {card.closingDay}
                       </span>
+                    )}
 
-                      <label style={styles.invoiceCheckLabel}>
-                        <input
-                          type="checkbox"
-
-                          checked={invoicePaid}
-
-                          onChange={() =>
-                            handleToggleInvoicePaid(card.name, creditItems)
-                          }
-
-                          disabled={togglingInvoice === card.name}
-
-                          style={{
-                            width: 18,
-                            height: 18,
-                            accentColor: "#10B981",
-                            cursor: "pointer",
-                          }}
-                        />
-
-                        <span
-                          style={{ color: invoicePaid ? "#10B981" : "#6B7280" }}
-                        >
-                          {invoicePaid ? "Paga" : "Pagar"}
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {/* ===== DÉBITO ===== */}
-
-                {debitItems.length > 0 && (
-                  <div style={styles.sectionRow}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <Banknote size={14} color="#2563EB" />
-
-                      <span
-                        style={{ ...styles.sectionTitle, color: "#2563EB" }}
-                      >
-                        Débito
+                    {card.dueDay && (
+                      <span style={styles.dueBadge}>
+                        Vence dia {card.dueDay}
                       </span>
-                    </div>
+                    )}
+                  </div>
 
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 12 }}
+                  >
                     <span
                       style={{
                         fontSize: 15,
                         fontWeight: 700,
-                        color: "#2563EB",
+                        color: invoicePaid ? "#9CA3AF" : "#7C3AED",
+                        textDecoration: invoicePaid ? "line-through" : "none",
                       }}
                     >
-                      {fmt(debitTotal)}
+                      {fmt(creditTotal)}
+                    </span>
+
+                    <label style={styles.invoiceCheckLabel}>
+                      <input
+                        type="checkbox"
+
+                        checked={invoicePaid}
+
+                        onChange={() =>
+                          handleToggleInvoicePaid(card.name, creditItems)
+                        }
+
+                        disabled={togglingInvoice === card.name}
+
+                        style={{
+                          width: 18,
+                          height: 18,
+                          accentColor: "#10B981",
+                          cursor: "pointer",
+                        }}
+                      />
+
+                      <span
+                        style={{ color: invoicePaid ? "#10B981" : "#6B7280" }}
+                      >
+                        {invoicePaid ? "Paga" : "Pagar"}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== DÉBITO ===== */}
+
+              {debitItems.length > 0 && (
+                <div style={styles.sectionRow}>
+                  <div
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <Banknote size={14} color="#2563EB" />
+
+                    <span style={{ ...styles.sectionTitle, color: "#2563EB" }}>
+                      Débito
                     </span>
                   </div>
-                )}
 
-                <div style={styles.cardFooter}>
-                  <span style={styles.subtotalLabel}>Total Gastos</span>
-
-                  <span style={styles.subtotalValue}>{fmt(subtotal)}</span>
+                  <span
+                    style={{ fontSize: 15, fontWeight: 700, color: "#2563EB" }}
+                  >
+                    {fmt(debitTotal)}
+                  </span>
                 </div>
+              )}
 
-                {hasCardIncome && (
-                  <div
+              <div style={styles.cardFooter}>
+                <span style={styles.subtotalLabel}>Total Gastos</span>
+
+                <span style={styles.subtotalValue}>{fmt(subtotal)}</span>
+              </div>
+
+              {hasCardIncome && (
+                <div
+                  style={{
+                    ...styles.cardFooter,
+
+                    borderTop: "2px solid #E5E7EB",
+
+                    backgroundColor: cardBalance >= 0 ? "#F0FDF4" : "#FEF2F2",
+                  }}
+                >
+                  <span
                     style={{
-                      ...styles.cardFooter,
-
-                      borderTop: "2px solid #E5E7EB",
-
-                      backgroundColor: cardBalance >= 0 ? "#F0FDF4" : "#FEF2F2",
+                      ...styles.subtotalLabel,
+                      fontWeight: 700,
+                      color: "#111827",
                     }}
                   >
-                    <span
-                      style={{
-                        ...styles.subtotalLabel,
-                        fontWeight: 700,
-                        color: "#111827",
-                      }}
-                    >
-                      Saldo
-                    </span>
+                    Saldo
+                  </span>
 
-                    <span
-                      style={{
-                        fontSize: 16,
+                  <span
+                    style={{
+                      fontSize: 16,
 
-                        fontWeight: 700,
+                      fontWeight: 700,
 
-                        color: cardBalance >= 0 ? "#10B981" : "#EF4444",
-                      }}
-                    >
-                      {fmt(cardBalance)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      color: cardBalance >= 0 ? "#10B981" : "#EF4444",
+                    }}
+                  >
+                    {fmt(cardBalance)}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {Object.entries(expensesByCard)
@@ -470,6 +664,19 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
+  editCardBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    border: "none",
+    backgroundColor: "#EFF6FF",
+    color: "#2563EB",
+    cursor: "pointer",
+  },
+
   deleteCardBtn: {
     display: "flex",
     alignItems: "center",
@@ -481,6 +688,15 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: "#FEF2F2",
     color: "#EF4444",
     cursor: "pointer",
+  },
+
+  editCardForm: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
+    padding: 16,
+    backgroundColor: "#EFF6FF",
+    borderBottom: "2px solid #2563EB",
   },
 
   grid: {

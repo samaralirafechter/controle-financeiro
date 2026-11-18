@@ -3,6 +3,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   doc,
   getDocs,
   query,
@@ -26,11 +27,11 @@ export async function addExpense(
 
 /**
 
-* Adiciona múltiplos gastos de uma vez (batch write).
+ * Adiciona múltiplos gastos de uma vez (batch write).
 
-* Usado para criar gastos fixos nos próximos meses ou parcelas futuras.
+ * Usado para criar gastos fixos nos próximos meses ou parcelas futuras.
 
-*/
+ */
 
 export async function addExpensesBatch(
   expenses: Omit<Expense, "id">[],
@@ -50,9 +51,9 @@ export async function addExpensesBatch(
 
 /**
 
-* Deleta todos os gastos futuros com o mesmo groupId (a partir de um mês específico).
+ * Deleta todos os gastos futuros com o mesmo groupId (a partir de um mês específico).
 
-*/
+ */
 
 export async function deleteExpensesByGroupIdFromMonth(
   groupId: string,
@@ -99,9 +100,9 @@ export async function updateExpense(
 
 /**
 
-* Atualiza todos os gastos futuros com o mesmo groupId (a partir de um mês específico).
+ * Atualiza todos os gastos futuros com o mesmo groupId (a partir de um mês específico).
 
-*/
+ */
 
 export async function updateExpensesByGroupIdFromMonth(
   groupId: string,
@@ -191,11 +192,11 @@ export async function addIncome(income: Omit<Income, "id">): Promise<string> {
 
 /**
 
-* Adiciona múltiplas entradas de uma vez (batch write).
+ * Adiciona múltiplas entradas de uma vez (batch write).
 
-* Usado para replicar entradas fixas (salário, adiantamento) nos próximos meses.
+ * Usado para replicar entradas fixas (salário, adiantamento) nos próximos meses.
 
-*/
+ */
 
 export async function addIncomesBatch(
   incomes: Omit<Income, "id">[],
@@ -224,9 +225,9 @@ export async function updateIncome(
 
 /**
 
-* Atualiza todas as entradas futuras com o mesmo groupId (a partir de um mês específico).
+ * Atualiza todas as entradas futuras com o mesmo groupId (a partir de um mês específico).
 
-*/
+ */
 
 export async function updateIncomesByGroupIdFromMonth(
   groupId: string,
@@ -271,37 +272,57 @@ export async function deleteIncome(id: string): Promise<void> {
 }
 
 /**
+
  * Deleta todas as entradas futuras com o mesmo groupId (a partir de um mês específico).
+
  */
+
 export async function deleteIncomesByGroupIdFromMonth(
   groupId: string,
+
   fromMonthYear: string,
 ): Promise<number> {
-  const q = query(collection(db, "incomes"), where("groupId", "==", groupId));
+  const q = query(
+    collection(db, "incomes"),
+
+    where("groupId", "==", groupId),
+  );
+
   const snapshot = await getDocs(q);
+
   const batch = writeBatch(db);
+
   let count = 0;
+
   snapshot.docs.forEach((d) => {
     const docData = d.data();
+
     if (docData.monthYear >= fromMonthYear) {
       batch.delete(d.ref);
+
       count++;
     }
   });
+
   if (count > 0) {
     await batch.commit();
   }
+
   return count;
 }
 
 export async function getIncomesByMonth(monthYear: string): Promise<Income[]> {
   const q = query(
     collection(db, "incomes"),
+
     where("monthYear", "==", monthYear),
   );
+
   const snapshot = await getDocs(q);
+
   return snapshot.docs.map((d) => ({
     id: d.id,
+
     ...d.data(),
   })) as Income[];
 }
@@ -311,11 +332,15 @@ export async function getIncomesBeforeMonth(
 ): Promise<Income[]> {
   const q = query(
     collection(db, "incomes"),
+
     where("monthYear", "<", monthYear),
   );
+
   const snapshot = await getDocs(q);
+
   return snapshot.docs.map((d) => ({
     id: d.id,
+
     ...d.data(),
   })) as Income[];
 }
@@ -323,15 +348,22 @@ export async function getIncomesBeforeMonth(
 // ==================== BALANCE ====================
 
 /**
+
  * Calcula o saldo (entradas - gastos) de um mês específico.
+
  */
+
 export async function getBalanceByMonth(monthYear: string): Promise<number> {
   const [expenses, incomes] = await Promise.all([
     getExpensesByMonth(monthYear),
+
     getIncomesByMonth(monthYear),
   ]);
+
   const totalIncomes = incomes.reduce((sum, i) => sum + i.value, 0);
+
   const totalExpenses = expenses.reduce((sum, e) => sum + e.value, 0);
+
   return totalIncomes - totalExpenses;
 }
 
@@ -339,18 +371,41 @@ export async function getBalanceByMonth(monthYear: string): Promise<number> {
 
 export async function addCard(card: Omit<Card, "id">): Promise<string> {
   const docRef = await addDoc(collection(db, "cards"), card);
+
   return docRef.id;
 }
 
 export async function getCards(): Promise<Card[]> {
   const snapshot = await getDocs(collection(db, "cards"));
+
   return snapshot.docs.map((d) => ({
     id: d.id,
+
     ...d.data(),
   })) as Card[];
 }
 
+export async function updateCard(
+  id: string,
+  data: Partial<Card>,
+): Promise<void> {
+  const docRef = doc(db, "cards", id);
+
+  // Substituir undefined por deleteField() para remover campos opcionais do Firestore
+
+  const cleanData: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "id") continue;
+
+    cleanData[key] = value === undefined ? deleteField() : value;
+  }
+
+  await updateDoc(docRef, cleanData);
+}
+
 export async function deleteCard(id: string): Promise<void> {
   const docRef = doc(db, "cards", id);
+
   await deleteDoc(docRef);
 }

@@ -32,6 +32,7 @@ import {
   getIncomesBeforeMonth,
   addCard as addCardService,
   getCards as getCardsService,
+  updateCard as updateCardService,
   deleteCard as deleteCardService,
 } from "../services/firestore";
 
@@ -116,6 +117,8 @@ interface FinanceContextType {
   deleteIncome: (id: string) => Promise<void>;
 
   addCard: (card: Omit<Card, "id">) => Promise<void>;
+
+  updateCard: (id: string, data: Partial<Card>) => Promise<void>;
 
   deleteCard: (id: string) => Promise<void>;
 
@@ -353,21 +356,47 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     async (expense: Omit<Expense, "id">) => {
       const groupId = crypto.randomUUID();
 
-      //Crédito sempre vai para o mês seguinte (ou +2 se depois do fechamento)
+      // Se for crédito, recalcular monthYear baseado no dia de fechamento do cartão
+
+      // Crédito sempre vai para mês seguinte (ou +2 se depois do fechamento)
+
       let adjustedExpense = { ...expense };
-      if (expense.paymentMethod === 'credito') {
-          const card = expense.card ? cards.find((c) => c.name === expense.card) : undefined;
-          const purchaseDate = expense.date || format(new Date(), 'yyyy-MM-dd');
-          adjustedExpense.monthYear = getCreditMonthYear(purchaseDate, card?.closingDay);
-          }
+
+      if (expense.paymentMethod === "credito") {
+        const card = expense.card
+          ? cards.find((c) => c.name === expense.card)
+          : undefined;
+
+        const purchaseDate = expense.date || format(new Date(), "yyyy-MM-dd");
+
+        adjustedExpense.monthYear = getCreditMonthYear(
+          purchaseDate,
+          card?.closingDay,
+        );
       }
+
+      // Helper: só adiciona ao state local se o gasto for do mês sendo visualizado
+
+      const addToLocalState = (exp: Expense) => {
+        if (exp.monthYear === monthYear) {
+          setExpenses((prev) => [...prev, exp]);
+        }
+      };
+
+      if (adjustedExpense.type === "fixo") {
         // Gasto fixo: cria no mês atual + próximos 12 meses
 
-        const baseDate = parse(adjustedExpense.monthYear, "yyyy-MM", new Date());
-        const currentMonthExpense = { ...adjustedExpense.monthYear, groupId };
+        const baseDate = parse(
+          adjustedExpense.monthYear,
+          "yyyy-MM",
+          new Date(),
+        );
+
+        const currentMonthExpense = { ...adjustedExpense, groupId };
+
         const id = await addExpenseService(currentMonthExpense);
 
-        setExpenses((prev) => [...prev, { ...currentMonthExpense, id }]);
+        addToLocalState({ ...currentMonthExpense, id });
 
         // Criar nos meses futuros em batch
 
@@ -390,11 +419,20 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         }
 
         await addExpensesBatch(futureExpenses);
-      } else if (adjustedExpense.type === "parcelado" && adjustedExpense.installmentTotal) {
+      } else if (
+        adjustedExpense.type === "parcelado" &&
+        adjustedExpense.installmentTotal
+      ) {
         // Gasto parcelado: cria parcelas do mês ajustado até a última parcela
 
-        const baseDate = parse(adjustedExpense.monthYear, "yyyy-MM", new Date());
+        const baseDate = parse(
+          adjustedExpense.monthYear,
+          "yyyy-MM",
+          new Date(),
+        );
+
         const startInstallment = adjustedExpense.installmentCurrent || 1;
+
         const totalInstallments = adjustedExpense.installmentTotal;
 
         const remainingInstallments = totalInstallments - startInstallment + 1;
@@ -411,7 +449,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
         const id = await addExpenseService(currentMonthExpense);
 
-        setExpenses((prev) => [...prev, { ...currentMonthExpense, id }]);
+        addToLocalState({ ...currentMonthExpense, id });
 
         // Parcelas futuras em batch
 
@@ -443,11 +481,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
         const id = await addExpenseService(adjustedExpense);
 
-        setExpenses((prev) => [...prev, { ...adjustedExpense, id }]);
+        addToLocalState({ ...adjustedExpense, id });
       }
     },
 
-    [cards],
+    [cards, monthYear],
   );
 
   const handleUpdateExpense = useCallback(
@@ -672,6 +710,17 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setCards((prev) => [...prev, { ...card, id }]);
   }, []);
 
+  const handleUpdateCard = useCallback(
+    async (id: string, data: Partial<Card>) => {
+      await updateCardService(id, data);
+
+      setCards((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, ...data } : c)),
+      );
+    },
+    [],
+  );
+
   const handleDeleteCard = useCallback(async (id: string) => {
     await deleteCardService(id);
 
@@ -703,6 +752,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     updateIncome: handleUpdateIncome,
     deleteIncome: handleDeleteIncome,
     addCard: handleAddCard,
+    updateCard: handleUpdateCard,
     deleteCard: handleDeleteCard,
     refreshData: loadData,
   };
