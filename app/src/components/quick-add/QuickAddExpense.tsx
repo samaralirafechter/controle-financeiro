@@ -34,7 +34,7 @@ import {
   type PaymentMethod,
 } from "../../types";
 
-const CATEGORY_ICONS: Record<Category, React.ElementType> = {
+const CATEGORY_ICONS: Record<Category, React.ComponentType<{ size?: number }> = {
   Moradia: Home,
 
   Alimentação: UtensilsCrossed,
