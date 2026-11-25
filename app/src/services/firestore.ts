@@ -13,7 +13,7 @@ import {
 
 import { db } from "./firebase";
 
-import type { Expense, Income, Card } from "../types";
+import type { Expense, Income, Card, Saving } from "../types";
 
 // ==================== EXPENSES ====================
 
@@ -408,4 +408,66 @@ export async function deleteCard(id: string): Promise<void> {
   const docRef = doc(db, "cards", id);
 
   await deleteDoc(docRef);
+}
+
+// ==================== SAVINGS / COFRINHO ====================
+
+// Adiciona um depósito ao Cofrinho
+export async function addSaving(
+  saving: Omit<Saving, "id">,
+): Promise<string> {
+  const docRef = await addDoc(collection(db, "savings"), saving);
+
+  return docRef.id;
+}
+
+// Busca os depósitos de um mês específico
+export async function getSavingsByMonth(
+  monthYear: string,
+): Promise<Saving[]> {
+  const q = query(
+    collection(db, "savings"),
+    where("monthYear", "==", monthYear),
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  })) as Saving[];
+}
+
+// Busca todos os depósitos anteriores a um mês
+export async function getSavingsBeforeMonth(
+  monthYear: string,
+): Promise<Saving[]> {
+  const q = query(
+    collection(db, "savings"),
+    where("monthYear", "<", monthYear),
+  );
+
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((d) => ({
+    id: d.id,
+    ...d.data(),
+  })) as Saving[];
+}
+
+// Exclui um depósito
+export async function deleteSaving(id: string): Promise<void> {
+  const docRef = doc(db, "savings", id);
+
+  await deleteDoc(docRef);
+}
+
+// Atualiza um depósito específico do Cofrinho
+export async function updateSaving(
+  id: string,
+  data: Partial<Saving>,
+): Promise<void> {
+  const docRef = doc(db, "savings", id);
+
+  await updateDoc(docRef, data);
 }

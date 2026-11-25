@@ -20,6 +20,24 @@ export type ExpenseType = 'fixo' | 'parcelado' | 'geral' | 'guardado';
 
 export type PaymentMethod = 'credito' | 'debito';
 
+// Categorias fixas do Cofrinho
+export type SavingsCategory =
+  | 'Casa'
+  | 'Carro'
+  | 'Viagens'
+  | 'Emergência';
+
+// Registro de valor guardado
+export interface Saving {
+  id: string;
+  category: SavingsCategory;
+  value: number;
+  date: string;
+  monthYear: string;
+  createdAt: string;
+  createdBy: string;
+}
+
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   credito: 'Crédito',
   debito: 'Débito',

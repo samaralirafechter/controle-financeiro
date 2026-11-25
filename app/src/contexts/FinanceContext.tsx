@@ -9,31 +9,42 @@ import React, {
 
 import { format, addMonths, parse } from "date-fns";
 
-import type { Expense, Income, Card, Category } from "../types";
+import type {
+  Expense,
+  Income,
+  Card,
+  Category,
+  Saving,
+  SavingsCategory,
+} from "../types";
 
 import { CATEGORY_COLORS, getCreditMonthYear } from "../types";
 
 import {
-  addExpense as addExpenseService,
-  addExpensesBatch,
-  updateExpense as updateExpenseService,
-  deleteExpense as deleteExpenseService,
-  deleteExpensesByGroupIdFromMonth,
-  updateExpensesByGroupIdFromMonth,
-  getExpensesByMonth,
-  getExpensesBeforeMonth,
-  addIncome as addIncomeService,
-  addIncomesBatch,
-  updateIncome as updateIncomeService,
-  updateIncomesByGroupIdFromMonth,
-  deleteIncome as deleteIncomeService,
-  deleteIncomesByGroupIdFromMonth,
-  getIncomesByMonth,
-  getIncomesBeforeMonth,
-  addCard as addCardService,
-  getCards as getCardsService,
-  updateCard as updateCardService,
-  deleteCard as deleteCardService,
+    addExpense as addExpenseService,
+    addExpensesBatch,
+    updateExpense as updateExpenseService,
+    deleteExpense as deleteExpenseService,
+    deleteExpensesByGroupIdFromMonth,
+    updateExpensesByGroupIdFromMonth,
+    getExpensesByMonth,
+    getExpensesBeforeMonth,
+    addIncome as addIncomeService,
+    addIncomesBatch,
+    updateIncome as updateIncomeService,
+    updateIncomesByGroupIdFromMonth,
+    deleteIncome as deleteIncomeService,
+    deleteIncomesByGroupIdFromMonth,
+    getIncomesByMonth,
+    getIncomesBeforeMonth,
+    addCard as addCardService,
+    getCards as getCardsService,
+    updateCard as updateCardService,
+    deleteCard as deleteCardService,
+    addSaving as addSavingService,
+    getSavingsByMonth,
+    getSavingsBeforeMonth,
+    deleteSaving as deleteSavingService,
 } from "../services/firestore";
 
 const FIXED_EXPENSE_MONTHS_AHEAD = 12; // gastos fixos replicam 12 meses à frente
@@ -75,78 +86,71 @@ interface FinanceContextType {
 
   cards: Card[];
 
+    savings: Saving[];
+    previousSavings: Saving[];
+
+    addSaving: (
+      category: SavingsCategory,
+      value: number,
+      date: string,
+    ) => Promise<void>;
+
+    deleteSaving: (id: string) => Promise<void>;
+
   loading: boolean;
-
   totalExpenses: number;
-
   totalIncomes: number;
-
+  totalSavings: number;
   balance: number;
-
   previousBalance: number;
-
   totalBalance: number;
-
   previousCardBalances: Record<string, number>;
-
   expensesByType: ExpensesByType;
-
   expensesByCard: ExpensesByCard;
-
   expensesByCategory: ExpensesByCategory;
-
   incomesByCard: IncomesByCard;
-
   cardSeparateNames: Set<string>;
 
   setMonthYear: (monthYear: string) => void;
-
   addExpense: (expense: Omit<Expense, "id">) => Promise<void>;
-
   updateExpense: (id: string, expense: Partial<Expense>) => Promise<void>;
-
   deleteExpense: (id: string) => Promise<void>;
-
   addIncome: (
     income: Omit<Income, "id">,
     replicateFuture?: boolean,
   ) => Promise<void>;
-
   updateIncome: (id: string, income: Partial<Income>) => Promise<void>;
-
   deleteIncome: (id: string) => Promise<void>;
-
   addCard: (card: Omit<Card, "id">) => Promise<void>;
-
   updateCard: (id: string, data: Partial<Card>) => Promise<void>;
-
   deleteCard: (id: string) => Promise<void>;
-
   refreshData: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const [monthYear, setMonthYear] = useState<string>(
-    format(new Date(), "yyyy-MM"),
-  );
+    const [monthYear, setMonthYear] = useState<string>(
+        format(new Date(), "yyyy-MM"),
+    );
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
 
-  const [incomes, setIncomes] = useState<Income[]>([]);
+    const [incomes, setIncomes] = useState<Income[]>([]);
 
-  const [cards, setCards] = useState<Card[]>([]);
+    const [cards, setCards] = useState<Card[]>([]);
+    const [savings, setSavings] = useState<Saving[]>([]);
+    const [previousSavings, setPreviousSavings] = useState<Saving[]>([]);
 
-  const [loading, setLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState<boolean>(true);
 
-  const [previousBalance, setPreviousBalance] = useState<number>(0);
+    const [previousBalance, setPreviousBalance] = useState<number>(0);
 
-  const [previousCardBalances, setPreviousCardBalances] = useState<
-    Record<string, number>
-  >({});
+    const [previousCardBalances, setPreviousCardBalances] = useState<
+        Record<string, number>
+    >({});
 
-  const loadData = useCallback(async () => {
+    const loadData = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -156,23 +160,23 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         cardsData,
         allPrevExpenses,
         allPrevIncomes,
+        savingsData,
+        allPrevSavings,
       ] = await Promise.all([
         getExpensesByMonth(monthYear),
-
         getIncomesByMonth(monthYear),
-
         getCardsService(),
-
         getExpensesBeforeMonth(monthYear),
-
         getIncomesBeforeMonth(monthYear),
+        getSavingsByMonth(monthYear),
+        getSavingsBeforeMonth(monthYear),
       ]);
 
       setExpenses(expensesData);
-
       setIncomes(incomesData);
-
       setCards(cardsData);
+      setSavings(savingsData);
+      setPreviousSavings(allPrevSavings);
 
       // Cartões com saldo próprio (todos os meses anteriores)
 
@@ -192,7 +196,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         .filter((e) => !prevCardNames.has(e.card))
         .reduce((s, e) => s + e.value, 0);
 
-      setPreviousBalance(prevTotalIncomes - prevTotalExpenses);
+      const prevTotalSavings = allPrevSavings.reduce(
+        (sum, saving) => sum + saving.value,
+        0,
+      );
+
+      setPreviousBalance(
+        prevTotalIncomes - prevTotalExpenses - prevTotalSavings,
+      );
 
       // Saldo acumulado por cartão separado (VR/VA) de todos os meses anteriores
 
@@ -258,10 +269,14 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     [incomes],
   );
 
-  const balance = useMemo(
-    () => totalIncomes - totalExpenses,
+  const totalSavings = useMemo(
+    () => savings.reduce((sum, saving) => sum + saving.value, 0),
+    [savings],
+  );
 
-    [totalIncomes, totalExpenses],
+  const balance = useMemo(
+    () => totalIncomes - totalExpenses - totalSavings,
+    [totalIncomes, totalExpenses, totalSavings],
   );
 
   const totalBalance = useMemo(
@@ -731,14 +746,49 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     setCards((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  const handleAddSaving = useCallback(
+    async (
+      category: SavingsCategory,
+      value: number,
+      date: string,
+    ) => {
+      const savingData = {
+        category,
+        value,
+        date,
+        monthYear: date.slice(0, 7),
+        createdAt: new Date().toISOString(),
+        createdBy: "app",
+      };
+
+      const id = await addSavingService(savingData);
+
+      if (savingData.monthYear === monthYear) {
+        setSavings((prev) => [...prev, { ...savingData, id }]);
+      }
+    },
+    [monthYear],
+  );
+
+  const handleDeleteSaving = useCallback(async (id: string) => {
+    await deleteSavingService(id);
+
+    setSavings((prev) => prev.filter((saving) => saving.id !== id));
+  }, []);
+
   const value: FinanceContextType = {
     monthYear,
     expenses,
     incomes,
     cards,
+    savings,
+    previousSavings,
+    addSaving: handleAddSaving,
+    deleteSaving: handleDeleteSaving,
     loading,
     totalExpenses,
     totalIncomes,
+    totalSavings,
     balance,
     previousBalance,
     totalBalance,
