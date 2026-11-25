@@ -115,7 +115,7 @@ export function getCreditMonthYear(purchaseDate: string, closingDay?: number): s
     const month = date.getMonth();
     const year = date.getFullYear();
 
-    if (day < closingDay || !closingDay) {
+    if (!closingDay || day < closingDay) {
         //Antes do fechamento ou zerado -> fatura do mês seguinte
         const m = month + 1;
         const newMonth = m % 12;
