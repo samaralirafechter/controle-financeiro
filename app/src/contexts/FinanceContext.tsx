@@ -42,6 +42,7 @@ import {
     updateCard as updateCardService,
     deleteCard as deleteCardService,
     addSaving as addSavingService,
+    updateSaving as updateSavingService,
     getSavingsByMonth,
     getSavingsBeforeMonth,
     deleteSaving as deleteSavingService,
@@ -93,6 +94,11 @@ interface FinanceContextType {
       category: SavingsCategory,
       value: number,
       date: string,
+    ) => Promise<void>;
+
+    updateSaving: (
+      id: string,
+      data: Partial<Saving>,
     ) => Promise<void>;
 
     deleteSaving: (id: string) => Promise<void>;
@@ -770,6 +776,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     [monthYear],
   );
 
+  const handleUpdateSaving = useCallback(
+    async (id: string, data: Partial<Saving>) => {
+      await updateSavingService(id, data);
+
+      setSavings((prev) =>
+        prev.map((saving) =>
+          saving.id === id ? { ...saving, ...data } : saving,
+        ),
+      );
+
+      setPreviousSavings((prev) =>
+        prev.map((saving) =>
+          saving.id === id ? { ...saving, ...data } : saving,
+        ),
+      );
+    },
+    [],
+  );
+
   const handleDeleteSaving = useCallback(async (id: string) => {
     await deleteSavingService(id);
 
@@ -784,6 +809,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     savings,
     previousSavings,
     addSaving: handleAddSaving,
+    updateSaving: handleUpdateSaving,
     deleteSaving: handleDeleteSaving,
     loading,
     totalExpenses,
