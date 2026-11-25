@@ -6,14 +6,16 @@ import ExpenseSummary from "../components/expenses/ExpenseSummary";
 import IncomeSection from "../components/income/IncomeSection";
 import CardSummary from "../components/cards/CardSummary";
 import ChartSection from "../components/charts/ChartSection";
+import SavingsPage from "./SavingsPage";
 
-type Tab = "gastos" | "entradas" | "graficos";
+type Tab = "gastos" | "cofrinhos" | "entradas" | "graficos";
 
 export default function Dashboard() {
   const { loading } = useFinance();
   const [activeTab, setActiveTab] = useState<Tab>("gastos");
   const tabs: { key: Tab; label: string }[] = [
     { key: "gastos", label: "Gastos" },
+    { key: "cofrinhos", label: "Cofrinhos" },
     { key: "entradas", label: "Financeiro" },
     { key: "graficos", label: "Gráficos" },
   ];
@@ -62,6 +64,7 @@ export default function Dashboard() {
 
       <div style={styles.content}>
         {activeTab === "gastos" && <ExpenseSummary />}
+        {activeTab === "cofrinhos" && <SavingsPage />}
         {activeTab === "entradas" && (
           <>
             <IncomeSection />
