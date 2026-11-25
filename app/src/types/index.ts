@@ -108,7 +108,7 @@ export interface Card {
 * - Se closingDay não definida, usa mês seguinte (monthYear = mês atual +1)
 */
 
-export function getCreditMonthYear(purchaseDate: string, closingDay: number): string {
+export function getCreditMonthYear(purchaseDate: string, closingDay?: number): string {
 
     const date = new Date(purchaseDate + 'T12:00:00');
     const day = date.getDate();
