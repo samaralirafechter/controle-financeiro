@@ -52,6 +52,7 @@ export default function ExpenseTable({ type, title }: ExpenseTableProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   function resetForm() {
     setForm(emptyForm);
@@ -177,9 +178,25 @@ export default function ExpenseTable({ type, title }: ExpenseTableProps) {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h3 style={styles.title}>
-          {title} <span style={styles.badge}>{EXPENSE_TYPE_LABELS[type]}</span>
-        </h3>
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          style={{
+            ...styles.title,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            textAlign: "left",
+            fontFamily: "inherit",
+            fontSize: "inherit",
+          }}
+          aria-expanded={expanded}
+        >
+          <span>{expanded ? "▼" : "▶"}</span>
+          {title}
+          <span style={styles.badge}>{EXPENSE_TYPE_LABELS[type]}</span>
+        </button>
 
         <div style={styles.headerRight}>
           <span style={styles.subtotal}>Subtotal: {fmt(subtotal)}</span>
@@ -190,353 +207,357 @@ export default function ExpenseTable({ type, title }: ExpenseTableProps) {
         </div>
       </div>
 
-      {allOfType.length > 0 && (
-        <div style={styles.filterBar}>
-          <select
-            style={styles.filterSelect}
-            value={filterCard}
-            onChange={(e) => setFilterCard(e.target.value)}
-          >
-            <option value="">Todos os cartões</option>
+      {expanded && (
+        <>
+          {allOfType.length > 0 && (
+            <div style={styles.filterBar}>
+                <select
+                  style={styles.filterSelect}
+                  value={filterCard}
+                  onChange={(e) => setFilterCard(e.target.value)}
+                >
+                  <option value="">Todos os cartões</option>
 
-            {cardOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+                  {cardOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
 
-          <select
-            style={styles.filterSelect}
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            <option value="">Todas as categorias</option>
+                <select
+                  style={styles.filterSelect}
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                >
+                  <option value="">Todas as categorias</option>
 
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+                  {categoryOptions.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
 
-          {(filterCard || filterCategory) && (
-            <button
-              style={styles.clearFilterBtn}
+                {(filterCard || filterCategory) && (
+                  <button
+                    style={styles.clearFilterBtn}
 
-              onClick={() => {
-                setFilterCard("");
-                setFilterCategory("");
-              }}
-            >
-              Limpar filtros
-            </button>
+                    onClick={() => {
+                      setFilterCard("");
+                      setFilterCategory("");
+                    }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+            </div>
           )}
-        </div>
-      )}
 
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Descrição</th>
-              <th style={{ ...styles.th, textAlign: "right" }}>Valor</th>
-              <th style={styles.th}>Categoria</th>
-              <th style={styles.th}>Cartão</th>
-              <th style={styles.th}>Pagamento</th>
+          <div style={styles.tableWrap}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Descrição</th>
+                  <th style={{ ...styles.th, textAlign: "right" }}>Valor</th>
+                  <th style={styles.th}>Categoria</th>
+                  <th style={styles.th}>Cartão</th>
+                  <th style={styles.th}>Pagamento</th>
 
-              {showDate && <th style={styles.th}>Data</th>}
-              {isParcelado && <th style={styles.th}>Parcela</th>}
-              {showPaid && (
-                <th style={{ ...styles.th, textAlign: "center", width: 50 }}>
-                  Pago
-                </th>
-              )}
-
-              <th style={{ ...styles.th, width: 90 }}>Ações</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={
-                    5 +
-                    (showDate ? 1 : 0) +
-                    (isParcelado ? 1 : 0) +
-                    (showPaid ? 1 : 0) +
-                    1
-                  }
-
-                  style={{
-                    ...styles.td,
-                    textAlign: "center",
-                    color: "#9CA3AF",
-                  }}
-                >
-                  Nenhum gasto registrado
-                </td>
-              </tr>
-            )}
-
-            {filtered.map((expense) =>
-              editId === expense.id ? (
-                <tr key={expense.id} style={{ backgroundColor: "#FEF9C3" }}>
-                  <td style={styles.td}>
-                    <input
-                      style={styles.input}
-                      value={editForm.description}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          description: e.target.value,
-                        })
-                      }
-                    />
-                  </td>
-
-                  <td style={styles.td}>
-                    <input
-                      style={{ ...styles.input, textAlign: "right" }}
-                      value={editForm.value}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, value: e.target.value })
-                      }
-
-                      placeholder="0,00"
-                    />
-                  </td>
-
-                  <td style={styles.td}>
-                    <select
-                      style={styles.select}
-                      value={editForm.category}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-
-                          category: e.target.value as Category,
-                        })
-                      }
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  <td style={styles.td}>
-                    <select
-                      style={styles.select}
-                      value={editForm.card}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, card: e.target.value })
-                      }
-                    >
-                      {cards.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  <td style={styles.td}>
-                    <select
-                      style={styles.select}
-                      value={editForm.paymentMethod}
-                      onChange={(e) =>
-                        setEditForm({
-                          ...editForm,
-                          paymentMethod: e.target.value as PaymentMethod,
-                        })
-                      }
-                    >
-                      <option value="credito">Crédito</option>
-                      <option value="debito">Débito</option>
-                    </select>
-                  </td>
-
-                  {showDate && (
-                    <td style={styles.td}>
-                      <input
-                        type="date"
-                        style={styles.input}
-                        value={editForm.date}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, date: e.target.value })
-                        }
-                      />
-                    </td>
+                  {showDate && <th style={styles.th}>Data</th>}
+                  {isParcelado && <th style={styles.th}>Parcela</th>}
+                  {showPaid && (
+                    <th style={{ ...styles.th, textAlign: "center", width: 50 }}>
+                      Pago
+                    </th>
                   )}
 
-                  {isParcelado && (
-                    <td style={styles.td}>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 4,
-                          alignItems: "center",
-                        }}
-                      >
+                  <th style={{ ...styles.th, width: 90 }}>Ações</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={
+                        5 +
+                        (showDate ? 1 : 0) +
+                        (isParcelado ? 1 : 0) +
+                        (showPaid ? 1 : 0) +
+                        1
+                      }
+
+                      style={{
+                        ...styles.td,
+                        textAlign: "center",
+                        color: "#9CA3AF",
+                      }}
+                    >
+                      Nenhum gasto registrado
+                    </td>
+                  </tr>
+                )}
+
+                {filtered.map((expense) =>
+                  editId === expense.id ? (
+                    <tr key={expense.id} style={{ backgroundColor: "#FEF9C3" }}>
+                      <td style={styles.td}>
                         <input
-                          style={{
-                            ...styles.input,
-                            width: 40,
-                            textAlign: "center",
-                          }}
-                          value={editForm.installmentCurrent}
+                          style={styles.input}
+                          value={editForm.description}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
-                              installmentCurrent: e.target.value,
+                              description: e.target.value,
                             })
                           }
                         />
+                      </td>
 
-                        <span>/</span>
-
+                      <td style={styles.td}>
                         <input
-                          style={{
-                            ...styles.input,
-                            width: 40,
-                            textAlign: "center",
-                          }}
-                          value={editForm.installmentTotal}
+                          style={{ ...styles.input, textAlign: "right" }}
+                          value={editForm.value}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, value: e.target.value })
+                          }
+
+                          placeholder="0,00"
+                        />
+                      </td>
+
+                      <td style={styles.td}>
+                        <select
+                          style={styles.select}
+                          value={editForm.category}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
 
-                              installmentTotal: e.target.value,
+                              category: e.target.value as Category,
                             })
                           }
-                        />
-                      </div>
-                    </td>
-                  )}
+                        >
+                          {CATEGORIES.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                  {showPaid && (
-                    <td style={{ ...styles.td, textAlign: "center" }}>—</td>
-                  )}
+                      <td style={styles.td}>
+                        <select
+                          style={styles.select}
+                          value={editForm.card}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, card: e.target.value })
+                          }
+                        >
+                          {cards.map((c) => (
+                            <option key={c.id} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-                  <td style={styles.td}>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button
-                        style={styles.saveBtn}
-                        onClick={handleSaveEdit}
-                        disabled={saving}
-                      >
-                        Salvar
-                      </button>
+                      <td style={styles.td}>
+                        <select
+                          style={styles.select}
+                          value={editForm.paymentMethod}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              paymentMethod: e.target.value as PaymentMethod,
+                            })
+                          }
+                        >
+                          <option value="credito">Crédito</option>
+                          <option value="debito">Débito</option>
+                        </select>
+                      </td>
 
-                      <button
-                        style={styles.cancelSmBtn}
+                      {showDate && (
+                        <td style={styles.td}>
+                          <input
+                            type="date"
+                            style={styles.input}
+                            value={editForm.date}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, date: e.target.value })
+                            }
+                          />
+                        </td>
+                      )}
 
-                        onClick={() => setEditId(null)}
-                      >
-                        X
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                <tr
-                  key={expense.id}
+                      {isParcelado && (
+                        <td style={styles.td}>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              alignItems: "center",
+                            }}
+                          >
+                            <input
+                              style={{
+                                ...styles.input,
+                                width: 40,
+                                textAlign: "center",
+                              }}
+                              value={editForm.installmentCurrent}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
+                                  installmentCurrent: e.target.value,
+                                })
+                              }
+                            />
 
-                  style={{
-                    ...styles.row,
+                            <span>/</span>
 
-                    opacity: expense.paid ? 0.6 : 1,
-                  }}
-                >
-                  <td
-                    style={{
-                      ...styles.td,
+                            <input
+                              style={{
+                                ...styles.input,
+                                width: 40,
+                                textAlign: "center",
+                              }}
+                              value={editForm.installmentTotal}
+                              onChange={(e) =>
+                                setEditForm({
+                                  ...editForm,
 
-                      textDecoration: expense.paid ? "line-through" : "none",
-                    }}
-                  >
-                    {expense.description}
-                  </td>
+                                  installmentTotal: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </td>
+                      )}
 
-                  <td
-                    style={{
-                      ...styles.td,
-                      textAlign: "right",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {fmt(expense.value)}
-                  </td>
+                      {showPaid && (
+                        <td style={{ ...styles.td, textAlign: "center" }}>—</td>
+                      )}
 
-                  <td style={styles.td}>{expense.category}</td>
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button
+                            style={styles.saveBtn}
+                            onClick={handleSaveEdit}
+                            disabled={saving}
+                          >
+                            Salvar
+                          </button>
 
-                  <td style={styles.td}>{expense.card}</td>
+                          <button
+                            style={styles.cancelSmBtn}
 
-                  <td style={styles.td}>
-                    {PAYMENT_METHOD_LABELS[expense.paymentMethod || "credito"]}
-                  </td>
+                            onClick={() => setEditId(null)}
+                          >
+                            X
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr
+                      key={expense.id}
 
-                  {showDate && <td style={styles.td}>{expense.date}</td>}
+                      style={{
+                        ...styles.row,
 
-                  {isParcelado && (
-                    <td style={styles.td}>
-                      {expense.installmentCurrent}/{expense.installmentTotal}
-                    </td>
-                  )}
-
-                  {showPaid && (
-                    <td style={{ ...styles.td, textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={!!expense.paid}
-                        onChange={() =>
-                          handleTogglePaid(expense.id, !!expense.paid)
-                        }
-
+                        opacity: expense.paid ? 0.6 : 1,
+                      }}
+                    >
+                      <td
                         style={{
-                          width: 18,
-                          height: 18,
-                          accentColor: "#10B981",
-                          cursor: "pointer",
+                          ...styles.td,
+
+                          textDecoration: expense.paid ? "line-through" : "none",
                         }}
-
-                        title={
-                          expense.paid
-                            ? "Marcar como não pago"
-                            : "Marcar como pago"
-                        }
-                      />
-                    </td>
-                  )}
-
-                  <td style={styles.td}>
-                    <div style={{ display: "flex", gap: 4 }}>
-                      <button
-                        style={styles.editBtn}
-
-                        onClick={() => startEdit(expense)}
                       >
-                        Editar
-                      </button>
+                        {expense.description}
+                      </td>
 
-                      <button
-                        style={styles.deleteBtn}
-                        onClick={() => handleDelete(expense.id)}
+                      <td
+                        style={{
+                          ...styles.td,
+                          textAlign: "right",
+                          fontWeight: 600,
+                        }}
                       >
-                        Excluir
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
-      </div>
+                        {fmt(expense.value)}
+                      </td>
+
+                      <td style={styles.td}>{expense.category}</td>
+
+                      <td style={styles.td}>{expense.card}</td>
+
+                      <td style={styles.td}>
+                        {PAYMENT_METHOD_LABELS[expense.paymentMethod || "credito"]}
+                      </td>
+
+                      {showDate && <td style={styles.td}>{expense.date}</td>}
+
+                      {isParcelado && (
+                        <td style={styles.td}>
+                          {expense.installmentCurrent}/{expense.installmentTotal}
+                        </td>
+                      )}
+
+                      {showPaid && (
+                        <td style={{ ...styles.td, textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            checked={!!expense.paid}
+                            onChange={() =>
+                              handleTogglePaid(expense.id, !!expense.paid)
+                            }
+
+                            style={{
+                              width: 18,
+                              height: 18,
+                              accentColor: "#10B981",
+                              cursor: "pointer",
+                            }}
+
+                            title={
+                              expense.paid
+                                ? "Marcar como não pago"
+                                : "Marcar como pago"
+                            }
+                          />
+                        </td>
+                      )}
+
+                      <td style={styles.td}>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <button
+                            style={styles.editBtn}
+
+                            onClick={() => startEdit(expense)}
+                          >
+                            Editar
+                          </button>
+
+                          <button
+                            style={styles.deleteBtn}
+                            onClick={() => handleDelete(expense.id)}
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+             </table>
+           </div>
+         </>
+       )}
 
       <Modal
         isOpen={showAdd}

@@ -289,7 +289,12 @@ export default function CardSummary() {
 
           const subtotal = items.reduce((sum, e) => sum + e.value, 0);
 
-          const creditTotal = creditItems.reduce((sum, e) => sum + e.value, 0);
+          const creditTotal = creditItems.reduce((sum, e) => {
+            // Gastos fixos só entram na fatura quando estiverem pagos
+            if (e.type === "fixo" && !e.paid) return sum;
+
+            return sum + e.value;
+          }, 0);
 
           const debitTotal = debitItems.reduce((sum, e) => sum + e.value, 0);
 
