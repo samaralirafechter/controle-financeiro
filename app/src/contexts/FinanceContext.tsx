@@ -780,26 +780,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     async (id: string, data: Partial<Saving>) => {
       await updateSavingService(id, data);
 
-      setSavings((prev) =>
-        prev.map((saving) =>
-          saving.id === id ? { ...saving, ...data } : saving,
-        ),
-      );
-
-      setPreviousSavings((prev) =>
-        prev.map((saving) =>
-          saving.id === id ? { ...saving, ...data } : saving,
-        ),
-      );
+      await loadData();
     },
-    [],
+    [loadData],
   );
 
-  const handleDeleteSaving = useCallback(async (id: string) => {
-    await deleteSavingService(id);
+  const handleDeleteSaving = useCallback(
+    async (id: string) => {
+      await deleteSavingService(id);
 
-    setSavings((prev) => prev.filter((saving) => saving.id !== id));
-  }, []);
+      await loadData();
+    },
+    [loadData],
+  );
 
   const value: FinanceContextType = {
     monthYear,
