@@ -199,7 +199,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
         .reduce((s, i) => s + i.value, 0);
 
       const prevTotalExpenses = allPrevExpenses
-        .filter((e) => !prevCardNames.has(e.card))
+        .filter(
+          (e) =>
+            e.type !== "guardado" &&
+            !prevCardNames.has(e.card),
+        )
         .reduce((s, e) => s + e.value, 0);
 
       const prevTotalSavings = allPrevSavings.reduce(
@@ -256,11 +260,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const totalExpenses = useMemo(
     () =>
       expenses
-
-        .filter((e) => !cardSeparateNames.has(e.card))
-
+        .filter(
+          (e) =>
+            e.type !== "guardado" &&
+            !cardSeparateNames.has(e.card),
+        )
         .reduce((sum, e) => sum + e.value, 0),
-
     [expenses, cardSeparateNames],
   );
 
