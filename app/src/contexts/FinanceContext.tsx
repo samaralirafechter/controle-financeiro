@@ -500,7 +500,11 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
       // Se é fixo ou parcelado com groupId, perguntar se quer atualizar meses futuros
 
+      const alterouSomentePagamento =
+        Object.keys(data).length === 1 && "paid" in data;
+
       if (
+        !alterouSomentePagamento &&
         expense?.groupId &&
         (expense.type === "fixo" || expense.type === "parcelado")
       ) {
